@@ -33,15 +33,27 @@ class CalculatorModel:
             self.current_value = "0"
 
     def calculate(self) -> None:
-        """Evalúa la expresión actual y guarda en el historial."""
+        """Evalúa la expresión actual de forma segura y guarda en el historial."""
         try:
-            # Reemplazamos símbolos para evaluación en Python
+            # Reemplazamos símbolos visuales por operandos de Python
             expr = self.current_value.replace('×', '*').replace('÷', '/')
-            result = eval(expr)
+            
+            # SEGURIDAD: Validar que la expresión solo contenga caracteres permitidos
+            # Números, operadores básicos, puntos y paréntesis
+            import re
+            if not re.match(r'^[0-9+\-*/.() ]+$', expr):
+                raise ValueError("Inyección detectada o expresión no permitida")
+
+            # Evaluar en un entorno restringido (sin acceso a __builtins__)
+            # Aunque re.match ya filtra, __globals__={} añade una capa extra
+            result = eval(expr, {"__builtins__": {}}, {})
             
             # Formatear el resultado
-            if isinstance(result, float) and result.is_integer():
-                result = int(result)
+            if isinstance(result, (int, float)):
+                if isinstance(result, float) and result.is_integer():
+                    result = int(result)
+            else:
+                raise ValueError("Resultado no numérico")
             
             # Guardar en el historial
             self.history.append(f"{self.current_value} = {result}")
@@ -51,6 +63,8 @@ class CalculatorModel:
             self.current_value = str(result)
         except ZeroDivisionError:
             self.current_value = "Error: Div / 0"
+        except (ValueError, SyntaxError):
+            self.current_value = "Error: Sintaxis"
         except Exception:
             self.current_value = "Error"
 
